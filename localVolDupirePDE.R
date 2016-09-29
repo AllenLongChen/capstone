@@ -1,5 +1,5 @@
 # Adapted from Rolf Poulsen's code
-# In this version, sigma is a function of K and t
+# In this version, sigma is a function of K and t (has been changed to a function of k and t, time to expiration)
 # Option prices of for all strikes and expirations returned from one call to the numerical PDE routine by solving the Dupire equation with appropriate boundary conditions.
 
 
@@ -26,7 +26,7 @@ tridagsoln<-function(a,b,c,r)
 }
 
 tVec <- (1:10)/10*capT;
-sigmaAvg <- mean(sigma(S0,tVec)); # Compute rough MLP estimate ATM
+sigmaAvg <- mean(sigma(log(S0/S0),tVec)); # Compute rough MLP estimate ATM
 
 initialcond<-function(K){pmax(S0-K,0) };
 
@@ -57,7 +57,7 @@ result<-matrix(nrow=(n.space+2),ncol=n.time); # Note that the whole grid is stor
 KgridPlus <- c(Kmin,Kgrid,Kmax);
 result[,n.time] <- initialcond(KgridPlus);
 tm1 <- capT-dt+dt*theta; # Time computed consistently with implicitness
-if (start==1) result[,(n.time-1)] <- BSFormula(S0,KgridPlus, dt, r, sigma(KgridPlus,tm1));
+if (start==1) result[,(n.time-1)] <- BSFormula(S0,KgridPlus, dt, r, sigma(log(KgridPlus/S0),capT-tm1));
 
 result[1,] <- lowboundary(Kmin,capT-tvec);
 result[(n.space+2),] <- highboundary(Kmax,capT-tvec);
@@ -68,7 +68,7 @@ for (j in (n.time-1-start):1){
     t1 <- tvec[j]+theta*dt; # Time chosen to be consistent with implicitness parameter theta
     
     # Note that these vectors are now time-dependent in general and need to be inside the time-loop
-    vol <- sigma(Kgrid,t1);
+    vol <- sigma(log(Kgrid/S0),capT-t1);
     a <- ((1-theta)/(2*dK))*(mu*Kgrid-(vol*Kgrid)^2/dK);
     b <- 1/dt+(1-theta)*(r+(vol*Kgrid/dK)^2);
     c <- ((1-theta)/(2*dK))*(-mu*Kgrid-(vol*Kgrid)^2/dK);
@@ -96,13 +96,14 @@ return(list(spacegrid=KgridPlus,timegrid=tvec,soln=result));
 
 #------------------------------------------------------------------------------------------
 # Generic version of PDE code
-callLocalVolDupirePDE <- function(S0, r, q, sigma, t, dK, dt, sdw, start=1, theta=1/2){
+callLocalVolDupirePDE <- function(S0,K,r, q, sigma, t, dK, dt, sdw, start=1, theta=1/2){
     
         
     #tst <- fdLocalVol(S0,capT=t,strike=K,r,sigma,2*dK,dt,sdw,start=start,theta=theta);
     tst <- fdLocalVolDupire(S0,capT=t,r,sigma,2*dK,dt,sdw,start=start,theta=theta);
     Sout<-tst$spacegrid; 
-    Sout <- Sout[abs(Sout-S0)<4*dK];
+    #Sout <- Sout[abs(Sout-S0)<4*dK];
+    Sout <- Sout[abs(Sout-K)<4*dK];
     w2h1k <- approx(tst$spacegrid,tst$soln[,1],Sout)$y
 
     #tst <- fdLocalVol(S0,capT=t,strike=K,r,sigma,dK,dt,sdw,start=start, theta=theta)
@@ -114,7 +115,6 @@ callLocalVolDupirePDE <- function(S0, r, q, sigma, t, dK, dt, sdw, start=1, thet
     w1h2k <- approx(tst$spacegrid,tst$soln[,1],Sout)$y
 
     wextrapol <- w1h1k+(1/3)*(w1h1k-w1h2k)+(1/3)*(w1h1k-w2h1k); # Richardson extrapolation
-    return(approx(Sout,wextrapol,S0)$y);
-    
+    return(approx(Sout,wextrapol,K)$y);
     
     }

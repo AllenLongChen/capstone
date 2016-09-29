@@ -24,7 +24,10 @@ tridagsoln<-function(a,b,c,r)
 
 #sVec <- S0+(strike-S0)*(1:10)/10;
 #tVec <- (1:10)/10*capT;
-sigmaAvg <- (sigma(S0,0)+sigma(strike,T))/2; # Compute rough MLP estimate
+
+### need to change the following line (local vol function cannot take t=0)
+#sigmaAvg <- (sigma(S0,0)+sigma(strike,T))/2; # Compute rough MLP estimate
+sigmaAvg <- sigma(log(S0/S0),capT); # Compute rough MLP estimate
 
 initialcond<-function(S){pmax(S-strike,0) };
 
@@ -55,7 +58,7 @@ result<-matrix(nrow=(n.space+2),ncol=n.time); # Note that the whole grid is stor
 SGridPlus <- c(Smin,Sgrid,Smax);
 result[,n.time] <- initialcond(SGridPlus);
 tm1 <- capT-dt+dt*theta; # Time computed consistently with implicitness
-if (start==1) result[,(n.time-1)] <- BSFormula(SGridPlus, strike, dt, r, sigma(SGridPlus,tm1));
+if (start==1) result[,(n.time-1)] <- BSFormula(SGridPlus, strike, dt, r, sigma(log(strike/SGridPlus),capT-tm1));
 
 result[1,] <- lowboundary(Smin,capT-tvec);
 result[(n.space+2),] <- highboundary(Smax,capT-tvec);
@@ -66,7 +69,7 @@ for (j in (n.time-1-start):1){
     t1 <- tvec[j]+theta*dt; # Time chosen to be consistent with implicitness parameter theta
     
     # Note that these vectors are now time-dependent in general and need to be inside the time-loop
-    vol <- sigma(Sgrid,t1);
+    vol <- sigma(log(strike/Sgrid),capT-t1);
     a <- ((1-theta)/(2*dS))*(mu*Sgrid-(vol*Sgrid)^2/dS);
     b <- 1/dt+(1-theta)*(r+(vol*Sgrid/dS)^2);
     c <- ((1-theta)/(2*dS))*(-mu*Sgrid-(vol*Sgrid)^2/dS);
@@ -106,6 +109,7 @@ callLocalVolPDE <- function(S0, K, r, q, sigma, t, dS, dt, sdw, start=1, theta=1
     w1h2k <- approx(tst$spacegrid,tst$soln[,1],Sout)$y
 
     wextrapol <- w1h1k+(1/3)*(w1h1k-w1h2k)+(1/3)*(w1h1k-w2h1k); # Richardson extrapolation
+    
     return(approx(Sout,wextrapol,S0)$y);
     
     
