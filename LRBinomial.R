@@ -24,7 +24,7 @@ binPriceLR <- function (X, S0, r, sig, Texp, oType, earlyExercise=TRUE, steps=10
   #T <- dt*steps # time to maturity
   
   nK <- length(X)
-  T <- Texp
+  capT <- Texp
   dt <- Texp / steps
   
   # Calculate the Leisen-Reimer model parameters
@@ -42,8 +42,8 @@ binPriceLR <- function (X, S0, r, sig, Texp, oType, earlyExercise=TRUE, steps=10
   V <- numeric(nK)
   
   for(i in 1:nK){
-    d1 <- (log(S0/X[i])+(r+sig[i]*sig[i]/2)*T)/sig[i]/sqrt(T);
-    d2 <- (log(S0/X[i])+(r-sig[i]*sig[i]/2)*T)/sig[i]/sqrt(T);
+    d1 <- (log(S0/X[i])+(r+sig[i]*sig[i]/2)*capT)/sig[i]/sqrt(capT);
+    d2 <- (log(S0/X[i])+(r-sig[i]*sig[i]/2)*capT)/sig[i]/sqrt(capT);
 
     pbar <- fh(d1,n)
     p <- fh(d2,n)
@@ -97,20 +97,20 @@ binPriceLR <- function (X, S0, r, sig, Texp, oType, earlyExercise=TRUE, steps=10
 
 
 # This function now works with vectors of strikes and option values
-binImpVolLR <- function(S0, K, T, r, V, oType, earlyExercise, steps=10000)
+binImpVolLR <- function(S0, K, capT, r, V, oType, earlyExercise, steps=10000)
 {
   nK <- length(K);
   sigmaL <- rep(1e-10,nK);
   
-  VL <- binPriceLR(K, S0, r, sigmaL, T, oType, earlyExercise, steps)
+  VL <- binPriceLR(K, S0, r, sigmaL, capT, oType, earlyExercise, steps)
   
   sigmaH <- rep(10,nK);
-  VH <- binPriceLR(K, S0, r, sigmaH, T, oType, earlyExercise, steps)
+  VH <- binPriceLR(K, S0, r, sigmaH, capT, oType, earlyExercise, steps)
   
   while (mean(sigmaH - sigmaL) > 1e-10)
   {
     sigma <- (sigmaL + sigmaH)/2;
-    VM <- binPriceLR(K, S0, r, sigma, T, oType, earlyExercise, steps)
+    VM <- binPriceLR(K, S0, r, sigma, capT, oType, earlyExercise, steps)
     
     VL <- VL + (VM < V)*(VM-VL);
     sigmaL <- sigmaL + (VM < V)*(sigma-sigmaL);
