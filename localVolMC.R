@@ -1,8 +1,8 @@
-evolveEuler <- function(x,K,capT,dt,Z,i){
+evolveEuler <- function(x,k,capT,dt,Z,i){
   
   #local variance
   t<-capT-(i-1)*dt
-  v<-a+b*(rho*((log(K)-x)/sqrt(t)-m1)+sqrt(((log(K)-x)/sqrt(t)-m1)^2+sig^2*t))
+  v<-a+b*(rho*((k-x)/sqrt(t)-m1)+sqrt(((k-x)/sqrt(t)-m1)^2+sig^2*t))
   
   # Log-stock process
   x <- x  - v/2*dt + sqrt(v*dt) * Z
@@ -95,12 +95,12 @@ LocalVolMC <- function(params){
         
         if (is.even(j)) {
           #print(c(i,mean(W1m),mean(W2m),sd(W1m),sd(W2m),cor(W1m,W2m))) 
-          resm <- evolve(xm,K,capT,capT/m,W1m,j/2) 
+          resm <- evolve(xm,log(K/S0),capT,capT/m,W1m,j/2) 
           xm <- resm
           W1m <- rep(0,N);
         }
         
-        res <- evolve(x,K,capT,capT/n,W1,j) 
+        res <- evolve(x,log(K/S0),capT,capT/n,W1,j) 
         x <- res
         
       }
