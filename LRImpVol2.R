@@ -6,8 +6,8 @@ load('GOOG.RData')
 ### fit implied vols of selected strikes,
 ### also get interest rate, borrow cost, implied spot for given Texp
 fit_imp_vol0 <- function(df,texp,nStrikes=5,delta=0.2,S0=869.81,sig0=0.2,r0=0,q0=0){
-  K_max<-S0*exp((r0-q0+sig0^2/2)*texp-sig0*sqrt(texp)*qnorm(exp(q0*texp)*delta))
-  K_min<-S0*exp((r0-q0+sig0^2/2)*texp+sig0*sqrt(texp)*qnorm(exp(q0*texp)*delta))
+  K_max<-S0*exp((r0-q0+sig0^2/2)*texp-sig0*sqrt(texp)*qnorm(exp((q0)*texp)*delta))
+  K_min<-S0*exp((r0-q0+sig0^2/2)*texp+sig0*sqrt(texp)*qnorm(exp((q0)*texp)*delta))
   
   df_subset_c <- subset(df, Texp==texp & cp_flag=="C")
   df_subset_p <- subset(df, Texp==texp & cp_flag=="P")
@@ -24,6 +24,9 @@ fit_imp_vol0 <- function(df,texp,nStrikes=5,delta=0.2,S0=869.81,sig0=0.2,r0=0,q0
   c_strike<-df_subset_c[indx,"strike_price"]
   p_strike<-df_subset_p[indx,"strike_price"]
   
+  #d1=log(S0*exp((r0-q0)*texp)/c_strike)/sig0/sqrt(texp)+0.5*sig0*sqrt(texp)
+  #vega=S0*exp((-q0)*texp)*dnorm(d1)*sqrt(texp)
+  
   optim_func<-function(...){
     input<-c(...)
     sig<-input[1:length(c_strike)]
@@ -36,16 +39,16 @@ fit_imp_vol0 <- function(df,texp,nStrikes=5,delta=0.2,S0=869.81,sig0=0.2,r0=0,q0
   }
 
   # set upper and lower bound for r and q
-  r_lower=0.00
-  r_upper=0.20
-  q_lower=0.00
-  q_upper=0.20
+  r_lower=-0.10
+  r_upper=0.30
+  q_lower=-0.10
+  q_upper=0.30
   sig0=rep(sig0,nStrikes)
   
   res <- optim(c(sig0,S0,r0,q0),optim_func,lower=c(rep(0,nStrikes+1),r_lower,q_lower),
                upper=c(rep(Inf,nStrikes+1),r_upper,q_upper),method='L-BFGS-B',
                control=list(maxit=10000))
-  return(res) # res$par contains the nStrikes imp vols and implied spot, interest rate, borrow cost
+  return(c(c_strike,res$par)) # res$par contains the nStrikes imp vols and implied spot, interest rate, borrow cost
 }
 
 ### fit implied vol smile for given Texp, Call/Put, Bid/Offer
@@ -63,7 +66,7 @@ fit_imp_vol<-function(df,texp,cp,bid_offer,S,r,q){
   strikes <- df_subset$strike_price
   
   imp_vols<-as.numeric(length(strikes))
-  
+
   for(i in 1:length(strikes)){
     strike<-strikes[i]
     opt_price<-opt_prices[i]
@@ -72,10 +75,9 @@ fit_imp_vol<-function(df,texp,cp,bid_offer,S,r,q){
       return((LRprice-opt_price)^2)
     }
     sig0<-0.2
-    sig1<-optim(sig0,optim_func,lower=0.1,upper=0.9,method='L-BFGS-B',control=list(maxit=1000))
+    sig1<-optim(sig0,optim_func,lower=0,upper=3,method='Brent',control=list(maxit=1000))
     imp_vols[i]<-sig1$par
   }
-  #print(imp_vols)
   return(data.frame(cbind(strikes,imp_vols)))
 }
 
@@ -83,30 +85,38 @@ Texps<-unique(df[,"Texp"])
 rates<-as.numeric(length(Texps))
 bcosts<-as.numeric(length(Texps))
 impSpots<-as.numeric(length(Texps))
+nStrikes<-5
 
 ### Texp
 ### 3   9  16  23  38  66 129 157 220 521
 
+### save OTM offer implied vol
 for(i in 1:length(Texps)){
-  if(i==10){
-    res<-fit_imp_vol0(df,Texps[i])$par
-    print(res)
-    impSpots[i]<-res[length(res)-2]
-    rates[i]<-res[length(res)-1]
-    bcosts[i]<-res[length(res)]
-    imp_vol_c_b<-fit_imp_vol(df,Texps[i],"C","bid",impSpots[i],rates[i],bcosts[i])
-    imp_vol_c_o<-fit_imp_vol(df,Texps[i],"C","offer",impSpots[i],rates[i],bcosts[i])
-    imp_vol_p_b<-fit_imp_vol(df,Texps[i],"P","bid",impSpots[i],rates[i],bcosts[i])
-    imp_vol_p_o<-fit_imp_vol(df,Texps[i],"P","offer",impSpots[i],rates[i],bcosts[i])
-    plot(imp_vol_c_b$strikes,imp_vol_c_b$imp_vols,type="l",xlab="strike",ylab="impVol",
-         col='red',ylim=c(0.14,0.4))
-    lines(imp_vol_c_o$strikes,imp_vol_c_o$imp_vols,col="blue")
-    lines(imp_vol_p_b$strikes,imp_vol_p_b$imp_vols,col="orange")
-    lines(imp_vol_p_o$strikes,imp_vol_p_o$imp_vols,col="green")
-    legend("topright",c("call bid","call offer","put bid","put offer"),lty=1,col=c("red","blue","orange","green"))
-  }
-  # res<-fit_imp_vol0(df,Texps[i])$par
-  # impSpots[i]<-res[length(nStrikes)+1]
-  # rates[i]<-res[length(nStrikes)+2]
-  # bcosts[i]<-res[length(nStrieks)+3]
+  res<-fit_imp_vol0(df,Texps[i])
+  impSpots[i]<-res[length(res)-2]
+  rates[i]<-res[length(res)-1]
+  bcosts[i]<-res[length(res)]
+  cat(impSpots[i],rates[i],bcosts[i])
+  imp_vol_c_b<-fit_imp_vol(df,Texps[i],"C","bid",impSpots[i],rates[i],bcosts[i])
+  imp_vol_c_o<-fit_imp_vol(df,Texps[i],"C","offer",impSpots[i],rates[i],bcosts[i])
+  imp_vol_p_b<-fit_imp_vol(df,Texps[i],"P","bid",impSpots[i],rates[i],bcosts[i])
+  imp_vol_p_o<-fit_imp_vol(df,Texps[i],"P","offer",impSpots[i],rates[i],bcosts[i])
+  
+  df_subset_c <- subset(df, Texp==Texps[i] & cp_flag=="C")
+  df_subset_p <- subset(df, Texp==Texps[i] & cp_flag=="P")
+  
+  fwd<-impSpots[i]*exp((rates[i]-bcosts[i])*Texps[i])
+  logstrikes<-log(imp_vol_c_b$strikes/fwd)
+  
+  title=paste(paste("Texp=",Texps[i]*365,sep=""),"d",sep="")
+  ymax=max(max(imp_vol_c_o$imp_vols),max(imp_vol_p_o$imp_vols))
+
+  plot(logstrikes,imp_vol_c_b$imp_vols,type="l",xlab="log-strike",ylab="impVol",
+       col='red',ylim=c(0.0,ymax),main=title)
+  lines(logstrikes,imp_vol_c_o$imp_vols,col="blue")
+  lines(logstrikes,imp_vol_p_b$imp_vols,col="orange")
+  lines(logstrikes,imp_vol_p_o$imp_vols,col="green")
+  points(log(res[1:nStrikes]/fwd),res[(nStrikes+1):(2*nStrikes)])
+
+  legend("top",c("call bid","call offer","put bid","put offer","benchmark"),lty=1,col=c("red","blue","orange","green","black"))
 }
