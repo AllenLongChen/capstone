@@ -1,8 +1,6 @@
 source('LRBinomial.R')
 source('BlackScholes.R')
 
-load('GOOG.RData')
-
 ### fit implied vols of selected strikes,
 ### also get interest rate, borrow cost, implied spot for given Texp
 fit_imp_vol0 <- function(df,texp,nStrikes=5,delta=0.2,S0=869.81,sig0=0.2,r0=0,q0=0){
@@ -81,42 +79,72 @@ fit_imp_vol<-function(df,texp,cp,bid_offer,S,r,q){
   return(data.frame(cbind(strikes,imp_vols)))
 }
 
-Texps<-unique(df[,"Texp"])
-rates<-as.numeric(length(Texps))
-bcosts<-as.numeric(length(Texps))
-impSpots<-as.numeric(length(Texps))
-nStrikes<-5
-
-### Texp
-### 3   9  16  23  38  66 129 157 220 521
-
-### save OTM offer implied vol
-for(i in 1:length(Texps)){
-  res<-fit_imp_vol0(df,Texps[i])
-  impSpots[i]<-res[length(res)-2]
-  rates[i]<-res[length(res)-1]
-  bcosts[i]<-res[length(res)]
-  cat(impSpots[i],rates[i],bcosts[i])
-  imp_vol_c_b<-fit_imp_vol(df,Texps[i],"C","bid",impSpots[i],rates[i],bcosts[i])
-  imp_vol_c_o<-fit_imp_vol(df,Texps[i],"C","offer",impSpots[i],rates[i],bcosts[i])
-  imp_vol_p_b<-fit_imp_vol(df,Texps[i],"P","bid",impSpots[i],rates[i],bcosts[i])
-  imp_vol_p_o<-fit_imp_vol(df,Texps[i],"P","offer",impSpots[i],rates[i],bcosts[i])
+file_to_grid<-function(file="GOOG.RData"){
+  load(file)
+  Texps<-unique(df[,"Texp"])
+  rates<-as.numeric(length(Texps))
+  bcosts<-as.numeric(length(Texps))
+  impSpots<-as.numeric(length(Texps))
+  nStrikes<-5
   
-  df_subset_c <- subset(df, Texp==Texps[i] & cp_flag=="C")
-  df_subset_p <- subset(df, Texp==Texps[i] & cp_flag=="P")
+  impVols<-data.frame()
   
-  fwd<-impSpots[i]*exp((rates[i]-bcosts[i])*Texps[i])
-  logstrikes<-log(imp_vol_c_b$strikes/fwd)
+  ### Texp
+  ### 3   9  16  23  38  66 129 157 220 521
   
-  title=paste(paste("Texp=",Texps[i]*365,sep=""),"d",sep="")
-  ymax=max(max(imp_vol_c_o$imp_vols),max(imp_vol_p_o$imp_vols))
-
-  plot(logstrikes,imp_vol_c_b$imp_vols,type="l",xlab="log-strike",ylab="impVol",
-       col='red',ylim=c(0.0,ymax),main=title)
-  lines(logstrikes,imp_vol_c_o$imp_vols,col="blue")
-  lines(logstrikes,imp_vol_p_b$imp_vols,col="orange")
-  lines(logstrikes,imp_vol_p_o$imp_vols,col="green")
-  points(log(res[1:nStrikes]/fwd),res[(nStrikes+1):(2*nStrikes)])
-
-  legend("top",c("call bid","call offer","put bid","put offer","benchmark"),lty=1,col=c("red","blue","orange","green","black"))
+  ### save OTM offer implied vol
+  for(i in 1:length(Texps)){
+    print(i)
+    res<-fit_imp_vol0(df,Texps[i])
+    #print(res[1:(2*nStrikes)])
+    
+    impSpots[i]<-res[length(res)-2]
+    rates[i]<-res[length(res)-1]
+    bcosts[i]<-res[length(res)]
+    cat(impSpots[i],rates[i],bcosts[i])
+    imp_vol_c_b<-fit_imp_vol(df,Texps[i],"C","bid",impSpots[i],rates[i],bcosts[i])
+    imp_vol_c_o<-fit_imp_vol(df,Texps[i],"C","offer",impSpots[i],rates[i],bcosts[i])
+    imp_vol_p_b<-fit_imp_vol(df,Texps[i],"P","bid",impSpots[i],rates[i],bcosts[i])
+    imp_vol_p_o<-fit_imp_vol(df,Texps[i],"P","offer",impSpots[i],rates[i],bcosts[i])
+    
+    df_subset_c <- subset(df, Texp==Texps[i] & cp_flag=="C")
+    df_subset_p <- subset(df, Texp==Texps[i] & cp_flag=="P")
+    
+    fwd<-impSpots[i]*exp((rates[i]-bcosts[i])*Texps[i])
+    logstrikes<-log(imp_vol_c_b$strikes/fwd)
+    
+    imp_vols<-data.frame(matrix(nrow=length(logstrikes),ncol=10))
+    colnames(imp_vols)<-c("logstrike","Texp","call_bid","call_offer","put_bid","put_offer",
+                          "imp_spot","imp_r","imp_q","imp_fwd")
+    imp_vols[,"logstrike"]<-logstrikes
+    imp_vols[,"Texp"]<-rep(Texps[i],length(logstrikes))
+    imp_vols[,"call_bid"]<-imp_vol_c_b$imp_vols
+    imp_vols[,"call_offer"]<-imp_vol_c_o$imp_vols
+    imp_vols[,"put_bid"]<-imp_vol_p_b$imp_vols
+    imp_vols[,"put_offer"]<-imp_vol_p_o$imp_vols
+    imp_vols[,"imp_spot"]<-rep(impSpots[i],length(logstrikes))
+    imp_vols[,"r"]<-rep(rates[i],length(logstrikes))
+    imp_vols[,"q"]<-rep(bcosts[i],length(logstrikes))
+    imp_vols[,"imp_fwd"]<-rep(fwd,length(logstrikes))
+    impVols<-rbind(impVols,imp_vols)
+    
+    #filename=paste(paste(Texps[i]*365,"d",sep=""),".RData",sep="")
+    #save(imp_vols,file=filename)
+    
+    # title=paste(paste("Texp=",Texps[i]*365,sep=""),"d",sep="")
+    # ymax=max(max(imp_vol_c_o$imp_vols),max(imp_vol_p_o$imp_vols))
+    # 
+    # plot(logstrikes,imp_vol_c_b$imp_vols,type="l",xlab="log-strike",ylab="impVol",
+    #      col='red',ylim=c(0.0,ymax),main=title)
+    # lines(logstrikes,imp_vol_c_o$imp_vols,col="blue")
+    # lines(logstrikes,imp_vol_p_b$imp_vols,col="orange")
+    # lines(logstrikes,imp_vol_p_o$imp_vols,col="green")
+    # points(log(res[1:nStrikes]/fwd),res[(nStrikes+1):(2*nStrikes)])
+    # 
+    # legend("top",c("call bid","call offer","put bid","put offer","benchmark"),lty=1,col=c("red","blue","orange","green","black"))
+  }
+  return(impVols)
 }
+
+impVols<-file_to_grid("GOOG.RData")
+save(impVols,file="impVols.RData")
