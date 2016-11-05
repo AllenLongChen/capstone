@@ -42,18 +42,21 @@ CH <- BSFormula(S0, K, capT, r, sigmaH);
 # This function also works with vectors of strikes and option values  
 BSImpliedVolPut <- function(S0, K, capT, r, P)
 {
-pv <- exp(-r*capT);
+#pv <- exp(-r*capT);
 sigmaL <- 1e-10;
-intrinsic <- (K-pv*S0);
+#intrinsic <- (K-pv*S0);
 nK <- length(K);
 sigmaL <- rep(1e-10,nK);
-PL <- BSFormula(S0, K, capT, r, sigmaL)+intrinsic;
-sigmaH <- 10;
-PH <- BSFormula(S0, K, capT, r, sigmaH)+intrinsic;
+#PL <- BSFormula(S0, K, capT, r, sigmaL)+intrinsic;
+PL <- BSFormula(S0, K, capT, r, sigmaL);
+sigmaH <- rep(10,nK);
+#PH <- BSFormula(S0, K, capT, r, sigmaH)+intrinsic;
+PH <- BSFormula(S0, K, capT, r, sigmaH);
   while (mean(sigmaH - sigmaL) > 1e-10)
   {
     sigma <- (sigmaL + sigmaH)/2;
-    PM <- BSFormula(S0, K, capT, r, sigma)+intrinsic;
+    #PM <- BSFormula(S0, K, capT, r, sigma)+intrinsic;
+    PM <- BSFormulaPut(S0, K, capT, r, sigma);
     PL <- PL + (PM < P)*(PM-PL);
     sigmaL <- sigmaL + (PM < P)*(sigma-sigmaL);
     PH <- PH + (PM >= P)*(PM-PH);
