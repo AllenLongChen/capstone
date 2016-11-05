@@ -79,8 +79,7 @@ fit_imp_vol<-function(df,texp,cp,bid_offer,S,r,q){
   return(data.frame(cbind(strikes,imp_vols)))
 }
 
-file_to_grid<-function(file="GOOG.RData"){
-  load(file)
+file_to_grid<-function(df){
   Texps<-unique(df[,"Texp"])
   rates<-as.numeric(length(Texps))
   bcosts<-as.numeric(length(Texps))
@@ -123,8 +122,8 @@ file_to_grid<-function(file="GOOG.RData"){
     imp_vols[,"put_bid"]<-imp_vol_p_b$imp_vols
     imp_vols[,"put_offer"]<-imp_vol_p_o$imp_vols
     imp_vols[,"imp_spot"]<-rep(impSpots[i],length(logstrikes))
-    imp_vols[,"r"]<-rep(rates[i],length(logstrikes))
-    imp_vols[,"q"]<-rep(bcosts[i],length(logstrikes))
+    imp_vols[,"imp_r"]<-rep(rates[i],length(logstrikes))
+    imp_vols[,"imp_q"]<-rep(bcosts[i],length(logstrikes))
     imp_vols[,"imp_fwd"]<-rep(fwd,length(logstrikes))
     impVols<-rbind(impVols,imp_vols)
     
@@ -145,6 +144,3 @@ file_to_grid<-function(file="GOOG.RData"){
   }
   return(impVols)
 }
-
-impVols<-file_to_grid("GOOG.RData")
-save(impVols,file="impVols.RData")
