@@ -49,7 +49,26 @@ sviImpliedToLocal<-function(sviMatrix,k_min,k_max,dk,t_min,t_max,dt){
       localVars[i,j]<-TotalToLocal(k,w,dwt,dwk,dwk2)
     }
   }
-  print(localVars)
+  return(localVars)
 }
 
 ### get local variance at (k,t) from a local variance grid
+### linear interpolation
+getLocalVar0<-function(LocalGrid,k_min,dk,t_min,dt,k,t){
+  nk<-round((k-k_min)/dk)+1
+  nt<-round((t-t_min)/dt)+1
+  return(LocalGrid[nt,nk])
+}
+
+load("sviMatrix.RData")
+k_min=-0.295
+k_max=0.295
+dk=0.001
+t_min=0.01
+t_max=1.4
+dt=0.01
+localVar<-sviImpliedToLocal(sviMatrix,k_min,k_max,dk,t_min,t_max,dt)
+#localVol<-sqrt(localVar)
+time<-seq(t_min,t_max,by=dt)
+strikes<-seq(k_min,k_max,by=dk)
+#persp(time, strikes, as.matrix(localVar), col="green", phi=30, theta=150,ylab="Log-strike k",xlab="Time to Expiration",zlab="Local Variance", main="Local Variance Surface")
