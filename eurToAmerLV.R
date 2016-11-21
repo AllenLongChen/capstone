@@ -21,7 +21,9 @@ getEarlyExerciseBoundaryFunc <- function(params,localVolFunc){
     tau <- capT - t
     sigl <- localVolFunc(tau,K)
     gamma <- sigl/8/pi/r^2/K^2
-    return( K-sigl*sqrt(tau*log(gamma/tau*(1-2/log(tau/gamma)))) )
+    res <- K-sigl*sqrt(tau*log(gamma/tau*(1-2/log(tau/gamma))))
+    if(is.nan(res)) return(K)
+    else return(res)
   }
   return(func)
 }
@@ -58,7 +60,7 @@ getAmericanPriceFunc <- function(params,localVolFunc,impVolFunc){
     }
     dt <- Texp/100
     ############### two 0.01s that need to be taken care of
-    ts <- seq(0.01,Texp,by=dt)
+    ts <- seq(0.0005,Texp,by=dt)
     integrands <- sapply(ts,function(t){dPdKFunc(params)(0,t,getEarlyExerciseBoundaryFunc(params,localVolFunc)(t,Texp,K))})
     ##############
     return(r*K*sum(1/2*(integrands[-1]+integrands[-length(integrands)])*dt))
@@ -74,7 +76,8 @@ getAmericanPriceFunc <- function(params,localVolFunc,impVolFunc){
 
 # Test region
 
-params <- list(S0 = 1, r = 0.02, iscall = FALSE)
-earlybound <- getEarlyExerciseBoundaryFunc(params, SVI_LocalVol_func(svi_param))
+params <- list(S0 = 800, r = 0.02, iscall = FALSE)
+earlybound <- getEarlyExerciseBoundaryFunc(params, SVI_LocalVol_func(svi_param, params$S0))
 eurprice <- getEuropeanPriceFunc(params, EurImpVol_func(svi_param, params$S0))
-ameprice <- getAmericanPriceFunc(params, SVI_LocalVol_func(svi_param), EurImpVol_func(svi_param, params$S0))
+ameprice <- getAmericanPriceFunc(params, SVI_LocalVol_func(svi_param, params$S0), EurImpVol_func(svi_param, params$S0))
+

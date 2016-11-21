@@ -20,10 +20,10 @@ SVI_LocalVol_surface <- function(param, k, time){
   return(surface)
 }
 
-SVI_LocalVol_func <- function(param){
+SVI_LocalVol_func <- function(param, X0){
   
-  func <- function(time, k){
-    
+  func <- function(time, K){
+    k <- log(K / X0)
     surface <- sapply(time, function(x){sqrt(SVI_LocalVol_slice(param, k, x))})
     return(surface)
   }
@@ -71,7 +71,8 @@ EurImpVol_func <- function(param, X0){
     }
     return(ImpVol)
   }
-  func <- function(time, k){
+  func <- function(time, K){
+    k <- log(K / X0)
     surface <- sapply(time, function(x){EurImpVol_slice1(param, k, x)})
     return(surface)
   }
