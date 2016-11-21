@@ -1,4 +1,6 @@
+setwd("/home/dongniu/capstone")
 source("BlackScholes.R")
+source("SVILocalVolToEurImpVol.R")
 
 #######################################################
 # params       is a list that consists of r, S0, iscall
@@ -13,7 +15,7 @@ source("BlackScholes.R")
 # formula 3.10
 # returns a function that takes valuation time t, 
 # expiry capT, and strike K
-getEarlyExerciseBoundaryFunc(params,localVolFunc){
+getEarlyExerciseBoundaryFunc <- function(params,localVolFunc){
   r <- params$r
   func <- function(t,capT,K){
     tau <- capT - t
@@ -29,7 +31,7 @@ getEarlyExerciseBoundaryFunc(params,localVolFunc){
 # expiry capT, and strike K
 # P(T,K) can be obtained by calling
 # getEuropeanPriceFunc(params,impVolFunc)(0,T,K)
-getEuropeanPriceFunc(params,impVolFunc){
+getEuropeanPriceFunc <- function(params,impVolFunc){
   r <- params$r
   S0 <- params$S0
   iscall <- params$iscall
@@ -39,13 +41,13 @@ getEuropeanPriceFunc(params,impVolFunc){
 
 # formula 3.11
 # returns a function that takes time to expiry and strike
-getAmericanPriceFunc(params,localVolFunc,impVolFunc){
+getAmericanPriceFunc <- function(params,localVolFunc,impVolFunc){
   getEarlyExercisePremium <- function(Texp,K){
     S0 <- params$S0
     r  <- params$r
     dPdKFunc <- function(params){
       calc <- function(t,capT,K){
-        sig <- impVolFunc(capT-t,K)
+        sigma <- impVolFunc(capT-t,K)
         x <- log(S0/K)+r*(capT-t)
         sig <- sigma*sqrt(capT-t)
         d1 <- x/sig+sig/2
@@ -55,8 +57,10 @@ getAmericanPriceFunc(params,localVolFunc,impVolFunc){
       return(calc)
     }
     dt <- Texp/100
-    ts <- seq(0,Texp,by=dt)
+    ############### two 0.01s that need to be taken care of
+    ts <- seq(0.01,Texp,by=dt)
     integrands <- sapply(ts,function(t){dPdKFunc(params)(0,t,getEarlyExerciseBoundaryFunc(params,localVolFunc)(t,Texp,K))})
+    ##############
     return(r*K*sum(1/2*(integrands[-1]+integrands[-length(integrands)])*dt))
   }
   
@@ -67,3 +71,10 @@ getAmericanPriceFunc(params,localVolFunc,impVolFunc){
   }
   return(americanFunc)
 }
+
+# Test region
+
+params <- list(S0 = 1, r = 0.02, iscall = FALSE)
+earlybound <- getEarlyExerciseBoundaryFunc(params, SVI_LocalVol_func(svi_param))
+eurprice <- getEuropeanPriceFunc(params, EurImpVol_func(svi_param, params$S0))
+ameprice <- getAmericanPriceFunc(params, SVI_LocalVol_func(svi_param), EurImpVol_func(svi_param, params$S0))

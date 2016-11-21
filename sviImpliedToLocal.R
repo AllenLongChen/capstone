@@ -61,8 +61,8 @@ getLocalVar0<-function(LocalGrid,k_min,dk,t_min,dt,k,t){
 }
 
 load("sviMatrix.RData")
-k_min=-0.295
-k_max=0.295
+k_min=-0.25
+k_max=0.25
 dk=0.001
 t_min=0.01
 t_max=1.4
@@ -71,4 +71,6 @@ localVar<-sviImpliedToLocal(sviMatrix,k_min,k_max,dk,t_min,t_max,dt)
 #localVol<-sqrt(localVar)
 time<-seq(t_min,t_max,by=dt)
 strikes<-seq(k_min,k_max,by=dk)
-#persp(time, strikes, as.matrix(localVar), col="green", phi=30, theta=150,ylab="Log-strike k",xlab="Time to Expiration",zlab="Local Variance", main="Local Variance Surface")
+persp(time[-(1:50)], strikes, as.matrix(localVar[-(1:50),]), col="green", phi=30, theta=30, 
+      r=1/sqrt(3)*20,d=5,expand=.5,ltheta=-135,lphi=20,ticktype="simple",
+      shade=.8,border=NA,,ylab="Log-strike k",xlab="Time to Expiration",zlab="Local Variance", main="Local Variance Surface")
