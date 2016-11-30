@@ -1,6 +1,6 @@
 # SVI parameterization of the local volatility surface
 
-svi_param <- list(a = 0.0012, b = 0.1634, sigma = 0.1029, rho = -0.5555, m = 0.0439)
+#svi_param <- list(a = 0.0012, b = 0.1634, sigma = 0.1029, rho = -0.5555, m = 0.0439)
 
 SVI_LocalVol_slice <- function(param, k, texp){
   a <- param$a
@@ -59,15 +59,17 @@ EurImpVol_func <- function(param, X0){
       # ATM implied vol equals to ATM local vol, no calculation required
       if(k[i] == 0){
         ImpVol <- c(ImpVol, sqrt(SVI_LocalVol_slice(param, 0, texp)))
-        next
       }
       
-      K <- exp(k[i]) * X0
-      inverse <- function(x){
-        1 / sqrt(SVI_LocalVol_slice(param, log(x / X0), texp))
+      
+      else{
+        inverse <- function(x){
+          1 / sqrt(SVI_LocalVol_slice(param, x, texp))
+        }
+        denominator <- integrate(inverse, 0, k[i], stop.on.error = TRUE)$value
+        ImpVol <- c(ImpVol, k[i] / denominator)
       }
-      denominator <- integrate(inverse, X0, K, stop.on.error = FALSE)$value
-      ImpVol <- c(ImpVol, k[i] / denominator)
+      
     }
     return(ImpVol)
   }
@@ -78,6 +80,21 @@ EurImpVol_func <- function(param, X0){
   }
   return(func)
 }
+
+#par(mfrow=c(2,3),mex=0.5)
+#Texps<-c(0.18,0.25,0.50,0.75,1.25,1.75)
+#for(texp in Texps){
+ # ivols<-EurImpVol_func(svi_param, 1)(texp,exp(seq(-1,1,0.01)))
+#  plot(seq(-1,1,0.01),ivols,xlab="Log-Strike",ylab="Implied vol.",main=paste("T=",texp,sep=""),type='l')
+#}
+# par(mfrow=c(1,1),mex=0.5)
+# ivol_func<-EurImpVol_func(svi_param, 1)
+# 
+# ivols<-ivol_func(seq(0.1,1.5,0.01),exp(seq(-1,1,0.01)))
+# 
+# persp(ivols, col="green", phi=30, theta=30, 
+#             r=1/sqrt(3)*20,d=5,expand=.5,ltheta=-135,lphi=20,ticktype="simple",
+#             shade=.8,border=NA,,ylab="Time to Expiration",xlab="Log-Strike k",zlab="Implied Volatility", main="Implied Vol Surface by BBF Formula")
 
 
 # EurImpVol_surface <- function(param, k, X0, time){
